@@ -80,32 +80,33 @@ aws --endpoint-url=http://localhost:4566 s3 cp test.txt s3://demo-bucket/test.tx
 
 Amazon SQS (Simple Queue Service) là một dịch vụ hàng đợi tin nhắn (message queue) dùng để truyền thông tin giữa các hệ thống một cách an toàn, tách biệt và không đồng bộ.
 
-##Tình huống
-###Giả sử nhiều luồng (thread) hoặc hệ thống cùng lúc tạo nhiều file lên một bucket S3, và bạn muốn trigger một Lambda function khi mỗi file được tạo.
+---
 
-##Vấn đề nếu không có SQS
-###Khi S3 kích hoạt trực tiếp Lambda, nếu số lượng sự kiện lớn trong thời gian ngắn (burst), có thể xảy ra:
+## Tình huống thực tế
+Giả sử nhiều luồng (thread) hoặc hệ thống cùng lúc tạo nhiều file lên một bucket S3, và bạn muốn trigger một Lambda function khi mỗi file được tạo.
+        
+## Vấn đề nếu không có SQS
+Nếu S3 kích hoạt trực tiếp Lambda, khi số lượng sự kiện lớn trong thời gian ngắn (burst), có thể xảy ra:
+- Lambda bị giới hạn số lượng concurrent executions.
+- Một số sự kiện bị mất nếu Lambda không kịp xử lý.
+- Không có cơ chế retry nếu Lambda bị lỗi.
 
-####Lambda bị giới hạn số lượng concurrent executions.
+**Giải pháp:** Dùng SQS làm trung gian. Bạn cấu hình S3 gửi event vào một hàng đợi SQS, sau đó thiết lập Lambda để consume từ SQS.
 
-####Một số sự kiện bị mất nếu Lambda không kịp xử lý.
+## Luồng hoạt động tổng quát
 
-####Không có cơ chế retry nếu Lambda bị lỗi.
-Giải pháp: Dùng SQS làm trung gian
-Bạn cấu hình S3 gửi event vào một hàng đợi SQS, sau đó thiết lập Lambda để consume từ SQS.
+```mermaid
+graph TD;
+  Producer((Producer: EC2, Lambda, API...)) -->|Tạo file lên S3| S3((S3 Bucket))
+  S3 -->|s3:ObjectCreated:* event| SQS((SQS Queue))
+  SQS -->|Message| Lambda((Lambda Consumer))
+  Lambda -->|Xử lý tuần tự/ song song| XửLý((Xử lý nghiệp vụ))
+  Lambda -.->|Fail: SQS retry/ DLQ| SQS
+```
 
-##Luồng hoạt động
-
-###Producer (EC2, Lambda, API...) --> SQS --> Consumer (EC2, Lambda, Worker...)
-
-###Nhiều luồng tạo file lên S3 (ví dụ PUT file).
-
-###Mỗi s3:ObjectCreated:* event sẽ được gửi vào hàng đợi SQS.
-
-###Lambda được thiết lập để nhận message từ hàng đợi này:
-
-###Lambda sẽ xử lý tuần tự hoặc song song tùy cấu hình.
-
-###Nếu Lambda fail, SQS sẽ retry (theo cấu hình retry & DLQ).
-
-###Đảm bảo event không bị mất và có thứ tự xử lý nếu cần.
+- Nhiều luồng tạo file lên S3 (ví dụ PUT file).
+- Mỗi `s3:ObjectCreated:*` event sẽ được gửi vào hàng đợi SQS.
+- Lambda được thiết lập để nhận message từ hàng đợi này.
+- Lambda sẽ xử lý tuần tự hoặc song song tùy cấu hình.
+- Nếu Lambda fail, SQS sẽ retry (theo cấu hình retry & DLQ).
+- Đảm bảo event không bị mất và có thứ tự xử lý nếu cần.
