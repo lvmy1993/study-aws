@@ -1,4 +1,4 @@
-# 1. AWS Lambda với LocalStack
+# I. AWS Lambda với LocalStack
 
 AWS Lambda là một dịch vụ điện toán của Amazon cho phép bạn chạy hàm (function) dựa trên sự kiện, mà không cần triển khai hoặc quản lý máy chủ (serverless).
 
@@ -76,7 +76,7 @@ aws --endpoint-url=http://localhost:4566 s3 cp test.txt s3://demo-bucket/test.tx
 > **Lưu ý:**
 > LocalStack log sẽ in trong terminal nội dung `print` trong `lambda_function.py` khi Lambda được kích hoạt.
 
-# 2. AWS SQS với LocalStack
+# II. AWS SQS với LocalStack
 
 Amazon SQS (Simple Queue Service) là một dịch vụ hàng đợi tin nhắn (message queue) dùng để truyền thông tin giữa các hệ thống một cách an toàn, tách biệt và không đồng bộ.
 
@@ -84,7 +84,7 @@ Amazon SQS (Simple Queue Service) là một dịch vụ hàng đợi tin nhắn 
 
 ## Tình huống thực tế
 Giả sử nhiều luồng (thread) hoặc hệ thống cùng lúc tạo nhiều file lên một bucket S3, và bạn muốn trigger một Lambda function khi mỗi file được tạo.
-        
+
 ## Vấn đề nếu không có SQS
 Nếu S3 kích hoạt trực tiếp Lambda, khi số lượng sự kiện lớn trong thời gian ngắn (burst), có thể xảy ra:
 - Lambda bị giới hạn số lượng concurrent executions.
@@ -110,3 +110,57 @@ graph TD;
 - Lambda sẽ xử lý tuần tự hoặc song song tùy cấu hình.
 - Nếu Lambda fail, SQS sẽ retry (theo cấu hình retry & DLQ).
 - Đảm bảo event không bị mất và có thứ tự xử lý nếu cần.
+## Cách làm với localstack
+### 1. Tạo SQS queue:
+
+```bash
+    aws --endpoint-url=http://localhost:4566 sqs create-queue \
+  --queue-name my-s3-event-queue
+```
+### 2. Lấy Amazon resource name(ARN) của queue:
+
+- Dùng để kiểm tra queue đã được tạo chưa.
+```bash
+    aws --endpoint-url=http://localhost:4566 sqs get-queue-attributes \
+    --queue-url http://localhost:4566/000000000000/my-s3-event-queue \
+    --attribute-names QueueArn
+```
+
+### 3. Cấu hình bucket gửi event vào SQS:
+
+```bash
+    aws --endpoint-url=http://localhost:4566 s3api put-bucket-notification-configuration \
+    --bucket demo-bucket \
+    --notification-configuration '{
+        "QueueConfigurations": [
+        {
+            "QueueArn": "arn:aws:sqs:us-east-1:000000000000:my-s3-event-queue",
+            "Events": ["s3:ObjectCreated:*"]
+        }
+        ]
+    }'
+
+```
+
+### 4. Tạo Lambda function.
+
+```bash
+    aws --endpoint-url=http://localhost:4566 lambda create-function \
+    --function-name my-sqs-lambda \
+    --runtime python3.9 \
+    --handler lambda_function.lambda_handler \
+    --role arn:aws:iam::000000000000:role/fake-role \
+    --zip-file fileb://function.zip \
+    --region us-east-1
+```
+
+### 5. Gán trigger SQS → Lambda
+
+```bash
+    aws --endpoint-url=http://localhost:4566 lambda create-event-source-mapping \
+  --function-name my-sqs-lambda \
+  --batch-size 1 \
+  --event-source-arn arn:aws:sqs:us-east-1:000000000000:my-s3-event-queue \
+  --region us-east-1
+
+```
