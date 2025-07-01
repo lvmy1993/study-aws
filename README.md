@@ -1,4 +1,4 @@
-# AWS Lambda với LocalStack
+# 1. AWS Lambda với LocalStack
 
 AWS Lambda là một dịch vụ điện toán của Amazon cho phép bạn chạy hàm (function) dựa trên sự kiện, mà không cần triển khai hoặc quản lý máy chủ (serverless).
 
@@ -75,3 +75,37 @@ aws --endpoint-url=http://localhost:4566 s3 cp test.txt s3://demo-bucket/test.tx
 
 > **Lưu ý:**
 > LocalStack log sẽ in trong terminal nội dung `print` trong `lambda_function.py` khi Lambda được kích hoạt.
+
+# 2. AWS SQS với LocalStack
+
+Amazon SQS (Simple Queue Service) là một dịch vụ hàng đợi tin nhắn (message queue) dùng để truyền thông tin giữa các hệ thống một cách an toàn, tách biệt và không đồng bộ.
+
+##Tình huống
+###Giả sử nhiều luồng (thread) hoặc hệ thống cùng lúc tạo nhiều file lên một bucket S3, và bạn muốn trigger một Lambda function khi mỗi file được tạo.
+
+##Vấn đề nếu không có SQS
+###Khi S3 kích hoạt trực tiếp Lambda, nếu số lượng sự kiện lớn trong thời gian ngắn (burst), có thể xảy ra:
+
+####Lambda bị giới hạn số lượng concurrent executions.
+
+####Một số sự kiện bị mất nếu Lambda không kịp xử lý.
+
+####Không có cơ chế retry nếu Lambda bị lỗi.
+Giải pháp: Dùng SQS làm trung gian
+Bạn cấu hình S3 gửi event vào một hàng đợi SQS, sau đó thiết lập Lambda để consume từ SQS.
+
+##Luồng hoạt động
+
+###Producer (EC2, Lambda, API...) --> SQS --> Consumer (EC2, Lambda, Worker...)
+
+###Nhiều luồng tạo file lên S3 (ví dụ PUT file).
+
+###Mỗi s3:ObjectCreated:* event sẽ được gửi vào hàng đợi SQS.
+
+###Lambda được thiết lập để nhận message từ hàng đợi này:
+
+###Lambda sẽ xử lý tuần tự hoặc song song tùy cấu hình.
+
+###Nếu Lambda fail, SQS sẽ retry (theo cấu hình retry & DLQ).
+
+###Đảm bảo event không bị mất và có thứ tự xử lý nếu cần.
