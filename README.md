@@ -1,15 +1,19 @@
 # AWS Lambda với LocalStack
 
 AWS Lambda là một dịch vụ điện toán của Amazon cho phép bạn chạy hàm (function) dựa trên sự kiện, mà không cần triển khai hoặc quản lý máy chủ (serverless).
-Các sự mà s3 hỗ trợ trigger
-s3:ObjectCreated:*	Bất kỳ khi nào một object mới được tạo	Phổ biến nhất
-s3:ObjectCreated:Put	Khi upload file bằng lệnh PUT	
-s3:ObjectCreated:Post	Upload qua form HTML	
-s3:ObjectCreated:Copy	Khi một object được sao chép	
-s3:ObjectCreated:CompleteMultipartUpload	Khi upload nhiều phần hoàn tất	
-s3:ObjectRemoved:*	Khi object bị xoá	
-s3:ObjectRemoved:Delete	Xoá bằng lệnh DELETE	
-s3:ObjectRemoved:DeleteMarkerCreated	Khi tạo delete marker (phiên bản hoá)
+
+### Các sự kiện mà S3 hỗ trợ trigger
+
+| Sự kiện                        | Mô tả                                         |
+|--------------------------------|-----------------------------------------------|
+| s3:ObjectCreated:*             | Bất kỳ khi nào một object mới được tạo (phổ biến nhất) |
+| s3:ObjectCreated:Put           | Khi upload file bằng lệnh PUT                 |
+| s3:ObjectCreated:Post          | Upload qua form HTML                          |
+| s3:ObjectCreated:Copy          | Khi một object được sao chép                  |
+| s3:ObjectCreated:CompleteMultipartUpload | Khi upload nhiều phần hoàn tất         |
+| s3:ObjectRemoved:*             | Khi object bị xoá                             |
+| s3:ObjectRemoved:Delete        | Xoá bằng lệnh DELETE                          |
+| s3:ObjectRemoved:DeleteMarkerCreated | Khi tạo delete marker (phiên bản hoá)   |
 ---
 
 ## Hướng dẫn tạo Lambda đơn giản với LocalStack

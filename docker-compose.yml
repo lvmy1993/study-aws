@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  localstack1:
+    container_name: localstack1
+    build: .
+    #image: localstack/localstack:latest
+    ports:
+      - "4566:4566"      # Main gateway
+      - "4571:4571"      # External services (optional)
+      - "8080:8080"      # Web UI (nếu bật)
+    environment:
+      - SERVICES=s3,lambda,apigateway,sqs,cloudwatch,iam
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack_data
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_Access_Key_ID=test
+      - AWS_Secret_Access_Key=test
+      - Default_region_name=us-east-1
+    volumes:
+      - "./localstack-data:/tmp/localstack_data"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - /home/mylv1993/localstask:/app
