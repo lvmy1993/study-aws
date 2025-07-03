@@ -111,6 +111,12 @@ graph TD;
 - Nếu Lambda fail, SQS sẽ retry (theo cấu hình retry & DLQ).
 - Đảm bảo event không bị mất và có thứ tự xử lý nếu cần.
 ## Cách làm với localstack
+
+### 0. Tạo S3 bucket
+```bash
+aws --endpoint-url=http://localhost:4566 s3api create-bucket --bucket demo-bucket
+```
+
 ### 1. Tạo SQS queue:
 
 ```bash
@@ -164,3 +170,96 @@ graph TD;
   --region us-east-1
 
 ```
+
+# III. CloudWatch logs
+
+CloudWatch = "hệ thống giám sát trung tâm" của AWS
+
+-Biết app có đang hoạt động bình thường không
+
+-Tìm log khi lỗi xảy ra
+
+-Tự động cảnh báo nếu có vấn đề
+---
+## Bước 1: Tạo Role giả với quyền CloudWatch logs
+
+```bash
+    aws --endpoint-url=http://localhost:4566 iam create-role \
+    --role-name fake-role \
+    --assume-role-policy-document '{
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "lambda.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole"
+        }
+      ]
+    }'
+
+```
+
+## Bước 2: Gán policy cho role
+
+```bash
+  aws --endpoint-url=http://localhost:4566 iam put-role-policy \
+  --role-name fake-role \
+  --policy-name cloudwatch-policy \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }'
+  
+```
+## Bước 3 xem log
+```bash
+  aws --endpoint-url=http://localhost:4566 logs describe-log-groups
+  aws --endpoint-url=http://localhost:4566 logs describe-log-streams --log-group-name /aws/lambda/my-sqs-lambda
+  STREAM_NAME=$(aws --endpoint-url=http://localhost:4566 logs describe-log-streams \
+  --log-group-name /aws/lambda/my-sqs-lambda \
+  --order-by LastEventTime --descending \
+  --query 'logStreams[0].logStreamName' \
+  --output text)
+  echo $STREAM_NAME
+  aws --endpoint-url=http://localhost:4566 logs get-log-events \
+  --log-group-name /aws/lambda/my-sqs-lambda \
+  --log-stream-name "$STREAM_NAME"
+```
+## Tự động cảnh báo nếu có vấn đề
+### Local stack không có tính năng tự động cảnh báo trong thực tế sẽ dùng Create Alarm trong aws
+
+# IV. API Gateway 
+-Tiếp nhận các yêu cầu (HTTP/REST/WebSocket) từ client (như trình duyệt, app mobile),
+
+-Chuyển tiếp yêu cầu đó tới các dịch vụ backend như AWS Lambda, S3, EC2, hoặc bất kỳ API nào,
+
+-Quản lý truy cập, bảo mật, giới hạn tốc độ (rate limit), logging, và nhiều tính năng khác.
+
+## Deploy Lambda vào LocalStack:
+
+```bash
+  aws --endpoint-url=http://localhost:4566 lambda create-function \
+  --function-name hello-lambda \
+  --runtime python3.9 \
+  --handler hello.handler \
+  --role arn:aws:iam::000000000000:role/lambda-role \
+  --zip-file fileb://hello.zip
+```
+## Tạo REST API Gateway
+```bash
+  aws --endpoint-url=http://localhost:4566 apigateway create-rest-api \
+  --name "MyApi"
+```
+

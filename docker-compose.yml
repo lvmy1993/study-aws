@@ -10,7 +10,7 @@ services:
       - "4571:4571"      # External services (optional)
       - "8080:8080"      # Web UI (nếu bật)
     environment:
-      - SERVICES=s3,lambda,apigateway,sqs,cloudwatch,iam
+      - SERVICES=s3,lambda,apigateway,sqs,cloudwatch,logs,iam
       - DEBUG=1
       - DATA_DIR=/tmp/localstack_data
       - LAMBDA_EXECUTOR=docker

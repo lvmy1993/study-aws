@@ -6,3 +6,4 @@ awslocal s3 mb s3://my-test-bucket
 
 # Tạo queue
 awslocal sqs create-queue --queue-name my-queue
+
